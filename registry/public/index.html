@@ -1,0 +1,717 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+  <meta charset="utf-8" />
+  <title>Web 4 / Agent Registry</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght,SOFT@0,9..144,300..900,0..100;1,9..144,300..900,0..100&family=JetBrains+Mono:wght@300;400;500;700&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --paper: #f2ece0;
+      --paper-2: #ebe3d2;
+      --ink: #0b0b0b;
+      --ink-2: #1a1a1a;
+      --accent: #c9301d;
+      --deep: #1f3a42;
+      --mute: #6a655c;
+      --rule: rgba(11, 11, 11, 0.16);
+      --rule-strong: rgba(11, 11, 11, 0.5);
+      --ok: #3f7a30;
+      --warn: #b87112;
+      --err: #a6261a;
+
+      --serif: 'Fraunces', 'Times New Roman', serif;
+      --mono: 'JetBrains Mono', ui-monospace, Consolas, monospace;
+    }
+
+    * { box-sizing: border-box; }
+    html, body { margin: 0; padding: 0; }
+    body {
+      background: var(--paper);
+      color: var(--ink);
+      font-family: var(--mono);
+      font-size: 14px;
+      line-height: 1.55;
+      min-height: 100vh;
+      position: relative;
+      overflow-x: hidden;
+    }
+
+    /* Grain overlay — gives the paper some tooth */
+    body::before {
+      content: '';
+      position: fixed; inset: 0;
+      background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='180' height='180'><filter id='n'><feTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='2' stitchTiles='stitch'/><feColorMatrix values='0 0 0 0 0.04 0 0 0 0 0.04 0 0 0 0 0.04 0 0 0 0.13 0'/></filter><rect width='100%25' height='100%25' filter='url(%23n)'/></svg>");
+      background-size: 180px 180px;
+      opacity: .6;
+      pointer-events: none;
+      z-index: 1;
+      mix-blend-mode: multiply;
+    }
+
+    main, nav, header, section, footer { position: relative; z-index: 2; }
+
+    /* ═══════════════ MASTHEAD ═══════════════ */
+    nav.masthead {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 18px 40px;
+      border-bottom: 1px solid var(--rule-strong);
+      font-family: var(--mono);
+      font-size: 11px;
+      letter-spacing: .18em;
+      text-transform: uppercase;
+      font-weight: 500;
+    }
+    .masthead-left .mark {
+      color: var(--accent);
+      font-family: var(--serif);
+      font-size: 18px;
+      margin-right: 10px;
+      vertical-align: -2px;
+      display: inline-block;
+      transform: rotate(-8deg);
+    }
+    .masthead-right { color: var(--mute); display: flex; gap: 18px; align-items: center; }
+    .pulse {
+      display: inline-block; width: 7px; height: 7px;
+      background: var(--accent); border-radius: 50%;
+      animation: pulse 1.8s infinite; margin-right: 6px;
+      vertical-align: 1px;
+    }
+    @keyframes pulse {
+      0%, 100% { opacity: 1; transform: scale(1); }
+      50% { opacity: .35; transform: scale(.75); }
+    }
+
+    /* ═══════════════ HERO ═══════════════ */
+    header.hero {
+      padding: 80px 40px 60px;
+      border-bottom: 1px solid var(--rule);
+      display: grid;
+      grid-template-columns: 1fr minmax(auto, 920px) 1fr;
+      gap: 0;
+      animation: reveal .9s .05s both cubic-bezier(.2,.7,.2,1);
+    }
+    .hero-inner { grid-column: 2; position: relative; }
+    .kicker {
+      font-family: var(--mono);
+      font-size: 11px;
+      letter-spacing: .24em;
+      text-transform: uppercase;
+      color: var(--accent);
+      margin: 0 0 30px 0;
+      display: flex; align-items: center; gap: 14px;
+    }
+    .kicker::before {
+      content: ''; width: 42px; height: 1px; background: var(--accent);
+      display: inline-block;
+    }
+    h1.hero-title {
+      font-family: var(--serif);
+      font-variation-settings: 'opsz' 144, 'SOFT' 30, 'wght' 380;
+      font-size: clamp(48px, 7.2vw, 108px);
+      line-height: .94;
+      letter-spacing: -.02em;
+      margin: 0 0 36px 0;
+      max-width: 14ch;
+    }
+    h1.hero-title em {
+      font-style: italic;
+      font-variation-settings: 'opsz' 144, 'SOFT' 100, 'wght' 300;
+      color: var(--accent);
+    }
+    .hero-lede {
+      font-family: var(--serif);
+      font-variation-settings: 'opsz' 20, 'SOFT' 50, 'wght' 400;
+      font-size: clamp(17px, 1.4vw, 22px);
+      line-height: 1.45;
+      max-width: 58ch;
+      color: var(--ink-2);
+      margin: 0;
+    }
+    .hero-aside {
+      position: absolute;
+      right: -240px; top: 4px;
+      width: 220px;
+      font-family: var(--mono);
+      font-size: 10.5px;
+      color: var(--mute);
+      line-height: 1.7;
+      letter-spacing: .04em;
+      border-left: 1px solid var(--rule);
+      padding: 4px 0 4px 18px;
+    }
+    .hero-aside strong { color: var(--ink); font-weight: 500; letter-spacing: .12em; text-transform: uppercase; display: block; margin-bottom: 4px; font-size: 9.5px; }
+
+    @keyframes reveal {
+      from { opacity: 0; transform: translateY(16px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+
+    /* ═══════════════ INDICATORS STRIP ═══════════════ */
+    section.indicators {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      border-bottom: 1px solid var(--rule-strong);
+      animation: reveal .9s .2s both cubic-bezier(.2,.7,.2,1);
+    }
+    .indicator {
+      padding: 24px 28px 22px;
+      border-right: 1px solid var(--rule);
+      position: relative;
+    }
+    .indicator:last-child { border-right: none; }
+    .indicator-num {
+      position: absolute;
+      top: 10px; right: 14px;
+      font-family: var(--mono);
+      font-size: 10px;
+      color: var(--mute);
+      letter-spacing: .15em;
+    }
+    .indicator-label {
+      font-family: var(--mono);
+      font-size: 10px;
+      letter-spacing: .22em;
+      text-transform: uppercase;
+      color: var(--mute);
+      margin-bottom: 6px;
+    }
+    .indicator-value {
+      font-family: var(--serif);
+      font-variation-settings: 'opsz' 60, 'SOFT' 30, 'wght' 420;
+      font-size: clamp(38px, 4vw, 56px);
+      line-height: 1;
+      letter-spacing: -.02em;
+      color: var(--ink);
+    }
+    .indicator-value.mono {
+      font-family: var(--mono);
+      font-weight: 400;
+      font-size: 22px;
+      letter-spacing: 0;
+    }
+    .indicator-suffix {
+      font-family: var(--mono);
+      font-size: 13px;
+      color: var(--mute);
+      margin-left: 4px;
+      letter-spacing: .08em;
+    }
+
+    /* ═══════════════ ROSTER ═══════════════ */
+    section.roster { padding: 60px 40px 40px; }
+    .roster-head {
+      display: flex;
+      justify-content: space-between;
+      align-items: baseline;
+      margin-bottom: 40px;
+      gap: 40px;
+      flex-wrap: wrap;
+    }
+    .roster-head h2 {
+      font-family: var(--serif);
+      font-variation-settings: 'opsz' 96, 'SOFT' 50, 'wght' 400;
+      font-size: clamp(32px, 4vw, 56px);
+      line-height: 1;
+      letter-spacing: -.02em;
+      margin: 0;
+      font-style: italic;
+    }
+    .roster-head p {
+      font-family: var(--mono);
+      font-size: 12px;
+      color: var(--mute);
+      max-width: 38ch;
+      margin: 0;
+      letter-spacing: .04em;
+    }
+
+    .cards { display: grid; grid-template-columns: 1fr; gap: 0; }
+    .empty {
+      padding: 80px 20px;
+      text-align: center;
+      color: var(--mute);
+      font-family: var(--serif);
+      font-style: italic;
+      font-size: 20px;
+      border-top: 1px solid var(--rule);
+      border-bottom: 1px solid var(--rule);
+    }
+
+    /* ═══════════════ CARD (service entry) ═══════════════ */
+    article.card {
+      display: grid;
+      grid-template-columns: 90px 1fr;
+      border-top: 1px solid var(--rule-strong);
+      padding: 40px 0 48px 0;
+      animation: slideIn .7s both cubic-bezier(.2,.7,.2,1);
+    }
+    article.card:last-child { border-bottom: 1px solid var(--rule-strong); }
+    @keyframes slideIn {
+      from { opacity: 0; transform: translateY(12px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+
+    .card-index {
+      font-family: var(--serif);
+      font-variation-settings: 'opsz' 144, 'SOFT' 0, 'wght' 300;
+      font-size: 76px;
+      line-height: .85;
+      color: var(--accent);
+      letter-spacing: -.04em;
+      padding-top: 2px;
+    }
+
+    .card-main { display: grid; grid-template-columns: 1.3fr 1fr; gap: 48px; }
+
+    .card-head { margin-bottom: 18px; }
+    .card-name {
+      font-family: var(--serif);
+      font-variation-settings: 'opsz' 96, 'SOFT' 30, 'wght' 420;
+      font-size: clamp(32px, 3vw, 44px);
+      line-height: 1;
+      margin: 0 0 6px 0;
+      letter-spacing: -.01em;
+    }
+    .card-meta {
+      font-family: var(--mono);
+      font-size: 11px;
+      color: var(--mute);
+      letter-spacing: .1em;
+      text-transform: uppercase;
+      display: flex; gap: 14px; align-items: center;
+    }
+    .card-meta .sep { opacity: .35; }
+    .card-desc {
+      font-family: var(--serif);
+      font-variation-settings: 'opsz' 18, 'SOFT' 50, 'wght' 400;
+      font-size: 17px;
+      line-height: 1.45;
+      color: var(--ink-2);
+      margin: 16px 0 20px 0;
+      max-width: 44ch;
+    }
+    .card-endpoint {
+      font-family: var(--mono);
+      font-size: 12px;
+      color: var(--deep);
+      margin: 0 0 28px 0;
+      padding: 8px 12px;
+      background: var(--paper-2);
+      display: inline-block;
+      border-left: 2px solid var(--deep);
+      letter-spacing: .02em;
+    }
+
+    /* reputation hero number on card */
+    .card-rep {
+      border-left: 1px solid var(--rule);
+      padding-left: 32px;
+      display: flex;
+      flex-direction: column;
+      justify-content: flex-start;
+    }
+    .card-rep-label {
+      font-family: var(--mono);
+      font-size: 10px;
+      letter-spacing: .22em;
+      text-transform: uppercase;
+      color: var(--mute);
+      margin-bottom: 4px;
+    }
+    .card-rep-value {
+      font-family: var(--serif);
+      font-variation-settings: 'opsz' 144, 'SOFT' 30, 'wght' 380;
+      font-size: clamp(56px, 6vw, 84px);
+      line-height: .9;
+      letter-spacing: -.03em;
+      color: var(--ink);
+    }
+    .card-rep-value.good { color: var(--ok); }
+    .card-rep-value.warn { color: var(--warn); }
+    .card-rep-value.err { color: var(--err); }
+    .card-rep-sub {
+      font-family: var(--mono);
+      font-size: 11px;
+      color: var(--mute);
+      margin-top: 6px;
+      letter-spacing: .08em;
+    }
+
+    /* mini metrics table */
+    .metric-table {
+      margin-top: 20px;
+      display: grid;
+      grid-template-columns: repeat(2, 1fr);
+      gap: 10px 28px;
+      border-top: 1px solid var(--rule);
+      padding-top: 16px;
+    }
+    .metric-row {
+      display: flex;
+      justify-content: space-between;
+      align-items: baseline;
+      font-family: var(--mono);
+      font-size: 12px;
+      border-bottom: 1px dotted var(--rule);
+      padding-bottom: 6px;
+    }
+    .metric-row .k {
+      color: var(--mute);
+      letter-spacing: .12em;
+      text-transform: uppercase;
+      font-size: 10px;
+    }
+    .metric-row .v { color: var(--ink); font-weight: 500; }
+
+    /* capabilities block */
+    .caps-section {
+      grid-column: 1 / -1;
+      margin-top: 28px;
+      border-top: 1px solid var(--rule);
+      padding-top: 22px;
+    }
+    .caps-title {
+      font-family: var(--mono);
+      font-size: 10px;
+      letter-spacing: .24em;
+      text-transform: uppercase;
+      color: var(--mute);
+      margin: 0 0 18px 0;
+      display: flex; gap: 10px; align-items: center;
+    }
+    .caps-title::after {
+      content: ''; flex: 1; height: 1px; background: var(--rule);
+    }
+    .capability {
+      display: grid;
+      grid-template-columns: 200px 1fr;
+      gap: 32px;
+      padding: 14px 0;
+      border-bottom: 1px solid var(--rule);
+    }
+    .capability:last-child { border-bottom: none; }
+    .cap-name {
+      font-family: var(--serif);
+      font-variation-settings: 'opsz' 24, 'SOFT' 30, 'wght' 500;
+      font-size: 19px;
+      color: var(--accent);
+      font-style: italic;
+    }
+    .cap-body { }
+    .cap-desc {
+      font-family: var(--serif);
+      font-variation-settings: 'opsz' 16, 'SOFT' 50, 'wght' 400;
+      font-size: 15px;
+      color: var(--ink-2);
+      line-height: 1.45;
+      margin: 0 0 10px 0;
+    }
+    details.schema {
+      border-top: 1px dotted var(--rule);
+      padding-top: 8px;
+      margin-top: 8px;
+    }
+    details.schema summary {
+      cursor: pointer;
+      font-family: var(--mono);
+      font-size: 10px;
+      letter-spacing: .2em;
+      text-transform: uppercase;
+      color: var(--mute);
+      user-select: none;
+      transition: color .2s;
+      list-style: none;
+      display: flex; align-items: center; gap: 8px;
+    }
+    details.schema summary::-webkit-details-marker { display: none; }
+    details.schema summary::before {
+      content: '+';
+      font-family: var(--serif);
+      font-size: 16px;
+      color: var(--accent);
+      transition: transform .25s;
+      display: inline-block;
+      line-height: 1;
+    }
+    details.schema[open] summary::before { transform: rotate(45deg); }
+    details.schema summary:hover { color: var(--ink); }
+    details.schema pre {
+      font-family: var(--mono);
+      font-size: 11px;
+      background: var(--ink);
+      color: #e6d9bf;
+      padding: 14px 16px;
+      border-radius: 0;
+      overflow-x: auto;
+      margin: 10px 0 0 0;
+      line-height: 1.5;
+      border-left: 2px solid var(--accent);
+    }
+
+    /* ═══════════════ COLOPHON ═══════════════ */
+    footer.colophon {
+      margin-top: 60px;
+      padding: 36px 40px 48px;
+      border-top: 2px solid var(--ink);
+      display: grid;
+      grid-template-columns: 1.3fr 1fr;
+      gap: 40px;
+      font-family: var(--mono);
+      font-size: 11px;
+      color: var(--mute);
+      line-height: 1.7;
+      letter-spacing: .04em;
+    }
+    footer.colophon .tag {
+      font-family: var(--serif);
+      font-variation-settings: 'opsz' 48, 'SOFT' 50, 'wght' 400;
+      font-size: 22px;
+      color: var(--ink);
+      font-style: italic;
+      margin-bottom: 8px;
+      letter-spacing: -.01em;
+    }
+    footer.colophon .formula {
+      color: var(--ink-2);
+      font-size: 11.5px;
+      margin-top: 12px;
+    }
+    footer.colophon code {
+      color: var(--accent);
+      font-family: var(--mono);
+    }
+    footer.colophon h4 {
+      font-size: 10px;
+      text-transform: uppercase;
+      letter-spacing: .22em;
+      color: var(--ink);
+      margin: 0 0 10px 0;
+      font-weight: 500;
+    }
+
+    /* ═══════════════ RESPONSIVE ═══════════════ */
+    @media (max-width: 980px) {
+      nav.masthead { padding: 14px 20px; font-size: 10px; }
+      header.hero { padding: 48px 20px 40px; grid-template-columns: 1fr; }
+      .hero-inner { grid-column: 1; }
+      .hero-aside { display: none; }
+      section.indicators { grid-template-columns: repeat(2, 1fr); }
+      .indicator { padding: 18px 20px; }
+      .indicator:nth-child(2) { border-right: none; }
+      .indicator:nth-child(1), .indicator:nth-child(2) { border-bottom: 1px solid var(--rule); }
+      section.roster { padding: 40px 20px; }
+      article.card { grid-template-columns: 60px 1fr; padding: 28px 0; }
+      .card-index { font-size: 48px; }
+      .card-main { grid-template-columns: 1fr; gap: 24px; }
+      .card-rep { border-left: none; border-top: 1px solid var(--rule); padding: 20px 0 0 0; }
+      .capability { grid-template-columns: 1fr; gap: 8px; }
+      footer.colophon { grid-template-columns: 1fr; padding: 28px 20px; }
+    }
+
+    /* Hide scrollbar prettily but keep function */
+    ::-webkit-scrollbar { width: 10px; height: 10px; }
+    ::-webkit-scrollbar-track { background: var(--paper-2); }
+    ::-webkit-scrollbar-thumb { background: var(--ink); border: 2px solid var(--paper-2); }
+  </style>
+</head>
+<body>
+  <nav class="masthead">
+    <div class="masthead-left">
+      <span class="mark">◉</span>Web 4 &nbsp;/&nbsp; Agent Registry
+    </div>
+    <div class="masthead-right">
+      <span>Vol. 01</span>
+      <span>Issue <span id="dateLabel">—</span></span>
+      <span><span class="pulse"></span>LIVE · 5s refresh</span>
+    </div>
+  </nav>
+
+  <header class="hero">
+    <div class="hero-inner">
+      <p class="kicker">An open protocol for agent-native services</p>
+      <h1 class="hero-title">The new <em>directory</em> for the agentic web.</h1>
+      <p class="hero-lede">
+        Every service publishes a machine-readable manifest. Every agent discovers by intent,
+        not by keyword. Reputation is earned in public — uptime, ratings, calls.
+        The infrastructure the Internet forgot to build.
+      </p>
+      <aside class="hero-aside">
+        <strong>Editorial note</strong>
+        This is a working prototype of a centralized registry for agent-callable services.
+        Manifests carry JSON-Schema I/O contracts and a pricing slot (x402 wired next).
+        Discovery is capability-first. The protocol is HTTP + JSON, by design.
+      </aside>
+    </div>
+  </header>
+
+  <section class="indicators">
+    <div class="indicator">
+      <span class="indicator-num">I</span>
+      <div class="indicator-label">Services registered</div>
+      <div class="indicator-value" id="statCount">—</div>
+    </div>
+    <div class="indicator">
+      <span class="indicator-num">II</span>
+      <div class="indicator-label">Total invocations</div>
+      <div class="indicator-value" id="statCalls">—</div>
+    </div>
+    <div class="indicator">
+      <span class="indicator-num">III</span>
+      <div class="indicator-label">Average reputation</div>
+      <div class="indicator-value" id="statRep">—</div>
+    </div>
+    <div class="indicator">
+      <span class="indicator-num">IV</span>
+      <div class="indicator-label">Last refresh</div>
+      <div class="indicator-value mono" id="statTs">—</div>
+    </div>
+  </section>
+
+  <section class="roster">
+    <div class="roster-head">
+      <h2>The roster.</h2>
+      <p>
+        Every entry below has registered itself at /register, exposes /manifest, and is
+        being health-checked continuously. Sorted by composite reputation.
+      </p>
+    </div>
+    <div class="cards" id="cards">
+      <div class="empty">loading the registry…</div>
+    </div>
+  </section>
+
+  <footer class="colophon">
+    <div>
+      <div class="tag">An open draft. Built in the open.</div>
+      Web 4 Agent Registry · Open-standard draft v0.1 · April MMXXVI<br>
+      No tracking. No lock-in. No proprietary SDK. Just HTTP + JSON + JSON-Schema.
+      <div class="formula">
+        reputation = 0.5·uptime + 0.3·(avg_rating / 5) + 0.2·min(log(calls+1)/log(1000), 1)
+      </div>
+    </div>
+    <div>
+      <h4>API surface</h4>
+      <code>GET /discover</code> · <code>POST /register</code><br>
+      <code>POST /services/:id/rate</code> · <code>POST /services/:id/report</code><br>
+      <code>GET /services/:id</code> · <code>PATCH /services/:id</code> · <code>DELETE /services/:id</code>
+    </div>
+  </footer>
+
+  <script>
+    const ROMANS = ['01','02','03','04','05','06','07','08','09','10','11','12','13','14','15','16','17','18','19','20'];
+    document.getElementById('dateLabel').textContent = new Date().toISOString().slice(0,7);
+
+    async function refresh() {
+      try {
+        const r = await fetch('/discover?sort=reputation');
+        const services = await r.json();
+        render(services);
+      } catch (e) {
+        document.getElementById('cards').innerHTML =
+          '<div class="empty" style="color:var(--err)">registry unreachable</div>';
+      }
+      document.getElementById('statTs').textContent = new Date().toLocaleTimeString('en-GB', { hour12: false });
+    }
+
+    function render(services) {
+      const totalCalls = services.reduce((s, x) => s + (x.call_count || 0), 0);
+      const avgRep = services.length
+        ? services.reduce((s, x) => s + (x.reputation_score || 0), 0) / services.length
+        : 0;
+      document.getElementById('statCount').innerHTML = services.length;
+      document.getElementById('statCalls').innerHTML = totalCalls;
+      document.getElementById('statRep').innerHTML = avgRep ? avgRep.toFixed(3) : '—';
+
+      const cards = document.getElementById('cards');
+      if (!services.length) {
+        cards.innerHTML = '<div class="empty">The roster is empty. Start a service with <code style="color:var(--accent)">npm run demo:all</code> and refresh.</div>';
+        return;
+      }
+      cards.innerHTML = services.map((s, i) => serviceCard(s, i)).join('');
+    }
+
+    function serviceCard(s, i) {
+      const idx = ROMANS[i] || String(i + 1).padStart(2, '0');
+      const rep = s.reputation_score != null ? s.reputation_score.toFixed(3) : '—';
+      const up = Math.round((s.uptime_score || 0) * 100);
+      const lat = s.avg_latency_ms != null ? s.avg_latency_ms + ' ms' : '—';
+      const calls = s.call_count || 0;
+      const rates = s.ratings_count || 0;
+      const capsCount = (s.capabilities || []).length;
+      const repCls = (s.reputation_score || 0) > 0.7 ? 'good'
+                   : (s.reputation_score || 0) > 0.4 ? 'warn'
+                   : (s.reputation_score || 0) > 0 ? '' : 'err';
+      const price = (s.pricing && s.pricing.per_call) ? `${s.pricing.per_call} ${s.pricing.currency}` : 'free · per call';
+
+      const caps = (s.capabilities || []).map(c => `
+        <div class="capability">
+          <div class="cap-name">${esc(c.name)}</div>
+          <div class="cap-body">
+            <p class="cap-desc">${esc(c.description || '—')}</p>
+            <details class="schema">
+              <summary>input schema · JSON-Schema</summary>
+              <pre>${esc(JSON.stringify(c.input_schema, null, 2))}</pre>
+            </details>
+            <details class="schema">
+              <summary>output schema · JSON-Schema</summary>
+              <pre>${esc(JSON.stringify(c.output_schema, null, 2))}</pre>
+            </details>
+          </div>
+        </div>
+      `).join('');
+
+      return `
+        <article class="card" style="animation-delay: ${i * 0.08}s">
+          <div class="card-index">${idx}</div>
+          <div class="card-main" style="display: grid; grid-template-columns: 1.3fr 1fr; gap: 48px;">
+            <div>
+              <div class="card-head">
+                <h3 class="card-name">${esc(s.name)}</h3>
+                <div class="card-meta">
+                  <span>id · ${s.id.slice(0, 8)}</span>
+                  <span class="sep">◇</span>
+                  <span>${esc(price)}</span>
+                  <span class="sep">◇</span>
+                  <span>${capsCount} capabilit${capsCount === 1 ? 'y' : 'ies'}</span>
+                </div>
+              </div>
+              <p class="card-desc">${esc(s.description || 'No description published.')}</p>
+              <p class="card-endpoint">→ ${esc(s.endpoint)}</p>
+              <div class="metric-table">
+                <div class="metric-row"><span class="k">Uptime · 24h</span><span class="v">${up}%</span></div>
+                <div class="metric-row"><span class="k">Avg latency</span><span class="v">${lat}</span></div>
+                <div class="metric-row"><span class="k">Invocations</span><span class="v">${calls}</span></div>
+                <div class="metric-row"><span class="k">Ratings received</span><span class="v">${rates}</span></div>
+              </div>
+            </div>
+            <div class="card-rep">
+              <div class="card-rep-label">Composite reputation</div>
+              <div class="card-rep-value ${repCls}">${rep}</div>
+              <div class="card-rep-sub">on a 0.000 → 1.000 scale</div>
+            </div>
+            <div class="caps-section">
+              <p class="caps-title">Capabilities published by this service</p>
+              ${caps || '<p style="color:var(--mute);font-family:var(--serif);font-style:italic;">No capabilities declared.</p>'}
+            </div>
+          </div>
+        </article>
+      `;
+    }
+
+    function esc(s) {
+      return String(s == null ? '' : s).replace(/[&<>"']/g, c => ({
+        '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'
+      }[c]));
+    }
+
+    refresh();
+    setInterval(refresh, 5000);
+  </script>
+</body>
+</html>

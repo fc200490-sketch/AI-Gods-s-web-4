@@ -1,0 +1,23 @@
+{
+  "name": "ai-agent-infra-demo",
+  "version": "0.1.0",
+  "description": "Web 4 agent-native infrastructure — MVP: registry + service + client",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "registry": "node registry/index.js",
+    "weather": "node service-demo/weather/index.js",
+    "currency": "node service-demo/currency/index.js",
+    "summarize": "node service-demo/summarize/index.js",
+    "demo": "node client-demo/index.js",
+    "demo:multi": "node client-demo/multi.js",
+    "demo:all": "node scripts/demo-all.js"
+  },
+  "engines": {
+    "node": ">=18"
+  },
+  "dependencies": {
+    "bcryptjs": "^2.4.3",
+    "express": "^4.19.2"
+  }
+}

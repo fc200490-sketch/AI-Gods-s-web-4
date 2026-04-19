@@ -1,0 +1,37 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://ai-agent-infra-demo/schemas/service.schema.json",
+  "title": "Agent Service Manifest",
+  "type": "object",
+  "required": ["name", "version", "capabilities", "auth"],
+  "properties": {
+    "name": { "type": "string" },
+    "version": { "type": "string" },
+    "description": { "type": "string" },
+    "capabilities": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["id", "endpoint", "method", "input_schema", "output_schema", "price", "payment_address"],
+        "properties": {
+          "id": { "type": "string" },
+          "endpoint": { "type": "string", "format": "uri" },
+          "method": { "type": "string", "enum": ["GET", "POST"] },
+          "input_schema": { "type": "object" },
+          "output_schema": { "type": "object" },
+          "price": {
+            "type": "object",
+            "required": ["amount", "currency", "chain"],
+            "properties": {
+              "amount": { "type": "string" },
+              "currency": { "type": "string" },
+              "chain": { "type": "string" }
+            }
+          },
+          "payment_address": { "type": "string" }
+        }
+      }
+    },
+    "auth": { "type": "string", "enum": ["x402", "lightning", "none"] }
+  }
+}
