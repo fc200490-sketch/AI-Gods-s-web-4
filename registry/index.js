@@ -13,6 +13,22 @@ const app = express();
 app.use(express.json());
 app.use(express.static(path.join(__dirname, 'public')));
 
+// ─── Live event bus (SSE) ───────────────────────────────────────────
+const EVENT_BUFFER_MAX = 100;
+const eventBuffer = [];
+const sseClients = new Set();
+
+function broadcastEvent(evt) {
+  const enriched = { ...evt, ts: evt.ts || new Date().toISOString(), seq: eventBuffer.length + 1 };
+  eventBuffer.push(enriched);
+  if (eventBuffer.length > EVENT_BUFFER_MAX) eventBuffer.shift();
+  const line = `data: ${JSON.stringify(enriched)}\n\n`;
+  for (const res of sseClients) {
+    try { res.write(line); } catch {}
+  }
+  return enriched;
+}
+
 const loadServices = () => readJson('registry.json', []);
 const saveServices = (s) => writeJson('registry.json', s);
 const loadClients = () => readJson('clients.json', []);
@@ -107,8 +123,43 @@ app.post('/register', async (req, res) => {
   const services = loadServices();
   services.push(service);
   saveServices(services);
+  broadcastEvent({
+    type: 'service_registered',
+    payload: { service_id: id, name, endpoint, capabilities: capabilities.map((c) => c.name) },
+  });
   res.status(201).json({ id, message: 'registered' });
 });
+
+app.post('/events', (req, res) => {
+  const { type, payload } = req.body || {};
+  if (!type) return res.status(400).json({ error: 'missing type' });
+  const evt = broadcastEvent({ type, payload: payload || {} });
+  res.status(201).json({ ok: true, seq: evt.seq });
+});
+
+app.get('/events/stream', (req, res) => {
+  res.set({
+    'Content-Type': 'text/event-stream',
+    'Cache-Control': 'no-cache',
+    Connection: 'keep-alive',
+    'X-Accel-Buffering': 'no',
+  });
+  res.flushHeaders();
+  res.write(`: connected\n\n`);
+  for (const e of eventBuffer.slice(-30)) {
+    res.write(`data: ${JSON.stringify(e)}\n\n`);
+  }
+  sseClients.add(res);
+  const keepAlive = setInterval(() => {
+    try { res.write(`: keep-alive\n\n`); } catch {}
+  }, 15000);
+  req.on('close', () => {
+    clearInterval(keepAlive);
+    sseClients.delete(res);
+  });
+});
+
+app.get('/events', (_req, res) => res.json(eventBuffer));
 
 app.get('/discover', (req, res) => {
   const { capability, sort } = req.query;
@@ -181,6 +232,10 @@ app.post('/services/:id/rate', async (req, res) => {
     ts: new Date().toISOString(),
   });
   saveRatings(ratings);
+  broadcastEvent({
+    type: 'rated',
+    payload: { service_id: req.params.id, service_name: service.name, score, comment: comment || null },
+  });
   res.status(201).json({ message: 'rated' });
 });
 

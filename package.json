@@ -11,12 +11,14 @@
     "summarize": "node --env-file=.env service-demo/summarize/index.js",
     "demo": "node --env-file=.env client-demo/index.js",
     "demo:multi": "node --env-file=.env client-demo/multi.js",
-    "demo:all": "node --env-file=.env scripts/demo-all.js"
+    "demo:all": "node --env-file=.env scripts/demo-all.js",
+    "mcp": "node --env-file=.env agent/mcp-server.js"
   },
   "engines": {
     "node": ">=18"
   },
   "dependencies": {
+    "@modelcontextprotocol/sdk": "^1.29.0",
     "bcryptjs": "^2.4.3",
     "express": "^4.19.2",
     "viem": "^2.48.1",

@@ -5,15 +5,20 @@ import { renderLanding } from '../_lib/landing.js';
 const PORT = Number(process.env.PORT || 4100);
 const ENDPOINT = process.env.ENDPOINT || `http://localhost:${PORT}`;
 const REGISTRY_URL = process.env.REGISTRY_URL || 'http://localhost:4000';
-const OWNER_SECRET = process.env.OWNER_SECRET || 'weather-demo-secret';
+const SERVICE_NAME = process.env.SERVICE_NAME || 'weather-demo';
+const SERVICE_DESCRIPTION = process.env.SERVICE_DESCRIPTION || 'Servizio demo che ritorna meteo finto per una città';
+const OWNER_SECRET = process.env.OWNER_SECRET || `${SERVICE_NAME}-secret`;
 const RECEIVER_ADDRESS = process.env.RECEIVER_ADDRESS;
 const X402_NETWORK = process.env.X402_NETWORK || 'base-sepolia';
 const X402_FACILITATOR_URL = process.env.X402_FACILITATOR_URL || 'https://x402.org/facilitator';
-const PRICE_USD = '$0.001';
+const PRICE_USD_STR = process.env.PRICE_USD || '$0.001';
+const PRICE_USD_NUM = Number(PRICE_USD_STR.replace('$', ''));
+const BEHAVIOR = process.env.BEHAVIOR || 'good'; // good | bugged | slow
+const LOG_TAG = `[${SERVICE_NAME}]`;
 
 const manifest = {
-  name: 'weather-demo',
-  description: 'Servizio demo che ritorna meteo finto per una città',
+  name: SERVICE_NAME,
+  description: SERVICE_DESCRIPTION,
   endpoint: ENDPOINT,
   capabilities: [
     {
@@ -35,7 +40,7 @@ const manifest = {
       },
     },
   ],
-  pricing: { per_call: 0.001, currency: 'USDC', network: X402_NETWORK },
+  pricing: { per_call: PRICE_USD_NUM, currency: 'USDC', network: X402_NETWORK },
 };
 
 const app = express();
@@ -53,28 +58,46 @@ if (RECEIVER_ADDRESS) {
       RECEIVER_ADDRESS,
       {
         'POST /invoke': {
-          price: PRICE_USD,
+          price: PRICE_USD_STR,
           network: X402_NETWORK,
-          config: { description: 'weather-demo get_weather call' },
+          config: { description: `${SERVICE_NAME} get_weather call` },
         },
       },
       { url: X402_FACILITATOR_URL },
     ),
   );
-  console.log(`[weather] x402 paywall active: ${PRICE_USD} → ${RECEIVER_ADDRESS}`);
+  console.log(`${LOG_TAG} x402 paywall active: ${PRICE_USD_STR} → ${RECEIVER_ADDRESS}`);
 } else {
-  console.warn('[weather] RECEIVER_ADDRESS not set — /invoke is FREE (x402 disabled)');
+  console.warn(`${LOG_TAG} RECEIVER_ADDRESS not set — /invoke is FREE (x402 disabled)`);
 }
 
 app.use(express.json());
 
-app.post('/invoke', (req, res) => {
+const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
+
+app.post('/invoke', async (req, res) => {
   const { capability, input } = req.body || {};
   if (capability !== 'get_weather') {
     return res.status(400).json({ error: `unknown capability: ${capability}` });
   }
   const city = input?.city;
   if (!city) return res.status(400).json({ error: 'input.city required' });
+
+  if (BEHAVIOR === 'slow') {
+    await sleep(2500 + Math.random() * 1500);
+  }
+
+  if (BEHAVIOR === 'bugged') {
+    // 40% of the time return obviously garbage data; 20% error out; 40% fine
+    const dice = Math.random();
+    if (dice < 0.4) {
+      return res.json({ city, temp_c: -999, conditions: '???' });
+    }
+    if (dice < 0.6) {
+      return res.status(500).json({ error: 'internal error (bugged provider)' });
+    }
+  }
+
   const conditions = ['sunny', 'cloudy', 'rainy', 'snowy'][Math.floor(Math.random() * 4)];
   const temp_c = Math.round((Math.random() * 30 - 5) * 10) / 10;
   res.json({ city, temp_c, conditions });
@@ -96,16 +119,16 @@ async function registerWithRegistry() {
     });
     const data = await r.json();
     if (r.ok) {
-      console.log(`[weather] registered with registry, id=${data.id}`);
+      console.log(`${LOG_TAG} registered with registry, id=${data.id}`);
     } else {
-      console.warn(`[weather] registry returned ${r.status}:`, data);
+      console.warn(`${LOG_TAG} registry returned ${r.status}:`, data);
     }
   } catch (e) {
-    console.warn('[weather] could not reach registry:', e.message);
+    console.warn(`${LOG_TAG} could not reach registry:`, e.message);
   }
 }
 
 app.listen(PORT, () => {
-  console.log(`[weather] listening on ${ENDPOINT}`);
+  console.log(`${LOG_TAG} listening on ${ENDPOINT} (behavior=${BEHAVIOR})`);
   registerWithRegistry();
 });
