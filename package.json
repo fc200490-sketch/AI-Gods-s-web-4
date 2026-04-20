@@ -5,19 +5,22 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "registry": "node registry/index.js",
-    "weather": "node service-demo/weather/index.js",
-    "currency": "node service-demo/currency/index.js",
-    "summarize": "node service-demo/summarize/index.js",
-    "demo": "node client-demo/index.js",
-    "demo:multi": "node client-demo/multi.js",
-    "demo:all": "node scripts/demo-all.js"
+    "registry": "node --env-file=.env registry/index.js",
+    "weather": "node --env-file=.env service-demo/weather/index.js",
+    "currency": "node --env-file=.env service-demo/currency/index.js",
+    "summarize": "node --env-file=.env service-demo/summarize/index.js",
+    "demo": "node --env-file=.env client-demo/index.js",
+    "demo:multi": "node --env-file=.env client-demo/multi.js",
+    "demo:all": "node --env-file=.env scripts/demo-all.js"
   },
   "engines": {
     "node": ">=18"
   },
   "dependencies": {
     "bcryptjs": "^2.4.3",
-    "express": "^4.19.2"
+    "express": "^4.19.2",
+    "viem": "^2.48.1",
+    "x402-express": "^1.2.0",
+    "x402-fetch": "^1.2.0"
   }
 }

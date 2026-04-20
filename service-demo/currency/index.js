@@ -1,10 +1,15 @@
 import express from 'express';
+import { paymentMiddleware } from 'x402-express';
 import { renderLanding } from '../_lib/landing.js';
 
 const PORT = Number(process.env.PORT || 4101);
 const ENDPOINT = process.env.ENDPOINT || `http://localhost:${PORT}`;
 const REGISTRY_URL = process.env.REGISTRY_URL || 'http://localhost:4000';
 const OWNER_SECRET = process.env.OWNER_SECRET || 'currency-demo-secret';
+const RECEIVER_ADDRESS = process.env.RECEIVER_ADDRESS;
+const X402_NETWORK = process.env.X402_NETWORK || 'base-sepolia';
+const X402_FACILITATOR_URL = process.env.X402_FACILITATOR_URL || 'https://x402.org/facilitator';
+const PRICE_USD = '$0.001';
 
 const RATES = {
   EUR: { USD: 1.08, GBP: 0.85, JPY: 164.2, CHF: 0.96 },
@@ -42,17 +47,38 @@ const manifest = {
       },
     },
   ],
-  pricing: { per_call: 0, currency: 'USDC' },
+  pricing: { per_call: 0.001, currency: 'USDC', network: X402_NETWORK },
 };
 
 const app = express();
-app.use(express.json());
 
 app.get('/', (_req, res) => {
   res.type('html').send(renderLanding(manifest, { registryUrl: REGISTRY_URL }));
 });
 
 app.get('/manifest', (_req, res) => res.json(manifest));
+app.get('/.well-known/agent.json', (_req, res) => res.json(manifest));
+
+if (RECEIVER_ADDRESS) {
+  app.use(
+    paymentMiddleware(
+      RECEIVER_ADDRESS,
+      {
+        'POST /invoke': {
+          price: PRICE_USD,
+          network: X402_NETWORK,
+          config: { description: 'currency-demo convert_currency call' },
+        },
+      },
+      { url: X402_FACILITATOR_URL },
+    ),
+  );
+  console.log(`[currency] x402 paywall active: ${PRICE_USD} → ${RECEIVER_ADDRESS}`);
+} else {
+  console.warn('[currency] RECEIVER_ADDRESS not set — /invoke is FREE (x402 disabled)');
+}
+
+app.use(express.json());
 
 app.post('/invoke', (req, res) => {
   const { capability, input } = req.body || {};

@@ -1,7 +1,22 @@
-const REGISTRY_URL = process.env.REGISTRY_URL || 'http://localhost:4000';
+import { createWalletClient, http } from 'viem';
+import { privateKeyToAccount } from 'viem/accounts';
+import { baseSepolia } from 'viem/chains';
+import { wrapFetchWithPayment, decodeXPaymentResponse } from 'x402-fetch';
 
-async function j(url, options = {}) {
-  const r = await fetch(url, {
+const REGISTRY_URL = process.env.REGISTRY_URL || 'http://localhost:4000';
+const PAYER_PRIVATE_KEY = process.env.PAYER_PRIVATE_KEY;
+
+let paidFetch = fetch;
+let payerAddress = null;
+if (PAYER_PRIVATE_KEY) {
+  const account = privateKeyToAccount(PAYER_PRIVATE_KEY);
+  payerAddress = account.address;
+  const walletClient = createWalletClient({ account, transport: http(), chain: baseSepolia });
+  paidFetch = wrapFetchWithPayment(fetch, walletClient);
+}
+
+async function j(url, options = {}, fetchFn = fetch) {
+  const r = await fetchFn(url, {
     ...options,
     headers: { 'Content-Type': 'application/json', ...(options.headers || {}) },
     body: options.body ? JSON.stringify(options.body) : undefined,
@@ -9,6 +24,10 @@ async function j(url, options = {}) {
   const text = await r.text();
   const data = text ? JSON.parse(text) : {};
   if (!r.ok) throw new Error(`${url} → ${r.status}: ${JSON.stringify(data)}`);
+  const payResp = r.headers.get('x-payment-response');
+  if (payResp) {
+    try { data.__payment = decodeXPaymentResponse(payResp); } catch {}
+  }
   return data;
 }
 
@@ -54,12 +73,18 @@ async function runTask(creds, task) {
     `  [choose]   ${chosen.name} · reputation=${chosen.reputation_score.toFixed(3)} · uptime=${(chosen.uptime_score || 0).toFixed(2)}`
   );
   const t0 = Date.now();
-  const result = await j(`${chosen.endpoint}/invoke`, {
-    method: 'POST',
-    body: { capability: task.capability, input: task.input },
-  });
+  const result = await j(
+    `${chosen.endpoint}/invoke`,
+    { method: 'POST', body: { capability: task.capability, input: task.input } },
+    paidFetch,
+  );
   const latency_ms = Date.now() - t0;
-  console.log(`  [invoke]   ${latency_ms}ms →`, result);
+  const { __payment, ...output } = result;
+  if (__payment) {
+    console.log(`  [pay]      tx=${__payment.transaction} on ${__payment.network} (payer=${__payment.payer?.slice(0, 10)}...)`);
+    console.log(`             explorer: https://sepolia.basescan.org/tx/${__payment.transaction}`);
+  }
+  console.log(`  [invoke]   ${latency_ms}ms →`, output);
   await j(`${REGISTRY_URL}/services/${chosen.id}/report`, {
     method: 'POST',
     body: {
@@ -85,6 +110,11 @@ async function main() {
   console.log('[client-multi] credenziali...');
   const creds = await j(`${REGISTRY_URL}/clients`, { method: 'POST' });
   console.log(`              client_id=${creds.client_id}`);
+  if (payerAddress) {
+    console.log(`              x402 payer=${payerAddress} on base-sepolia`);
+  } else {
+    console.log('              x402 disabled (PAYER_PRIVATE_KEY not set)');
+  }
   for (const task of TASKS) {
     await runTask(creds, task);
   }

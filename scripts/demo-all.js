@@ -30,7 +30,8 @@ function pipe(tag, stream) {
 }
 
 function run(tag, script, env = {}) {
-  const child = spawn('node', [path.join(root, script)], {
+  const child = spawn('node', ['--env-file=.env', path.join(root, script)], {
+    cwd: root,
     env: { ...process.env, ...env },
     stdio: ['ignore', 'pipe', 'pipe'],
   });

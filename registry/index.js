@@ -34,6 +34,17 @@ function hydrate(service) {
   return { ...pub, avg_latency_ms, ratings_count: ratings.length, reputation_score };
 }
 
+async function fetchCanonicalManifest(endpoint) {
+  try {
+    const url = new URL('/.well-known/agent.json', endpoint).toString();
+    const r = await fetch(url, { signal: AbortSignal.timeout(5000) });
+    if (!r.ok) return { ok: false, reason: `HTTP ${r.status}` };
+    return { ok: true, manifest: await r.json() };
+  } catch (e) {
+    return { ok: false, reason: e.message };
+  }
+}
+
 async function verifyOwner(service, secret) {
   if (!secret) return false;
   return bcrypt.compare(secret, service.owner_secret_hash);
@@ -59,6 +70,24 @@ app.post('/register', async (req, res) => {
   const { name, description, endpoint, capabilities, pricing, owner_secret } = req.body || {};
   if (!name || !endpoint || !Array.isArray(capabilities) || !owner_secret) {
     return res.status(400).json({ error: 'missing fields: name, endpoint, capabilities, owner_secret' });
+  }
+  const canonical = await fetchCanonicalManifest(endpoint);
+  if (!canonical.ok) {
+    return res.status(400).json({
+      error: `cannot verify canonical manifest at ${endpoint}/.well-known/agent.json: ${canonical.reason}`,
+    });
+  }
+  if (canonical.manifest.name !== name) {
+    return res.status(400).json({
+      error: `canonical manifest name mismatch: remote says "${canonical.manifest.name}", registration says "${name}"`,
+    });
+  }
+  const canonicalCaps = new Set((canonical.manifest.capabilities || []).map((c) => c.name));
+  const missing = capabilities.map((c) => c.name).filter((n) => !canonicalCaps.has(n));
+  if (missing.length) {
+    return res.status(400).json({
+      error: `canonical manifest missing declared capabilities: ${missing.join(', ')}`,
+    });
   }
   const id = crypto.randomUUID();
   const owner_secret_hash = await bcrypt.hash(owner_secret, 8);
